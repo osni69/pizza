@@ -6,9 +6,9 @@ const MENU = [
  {id:'calabresa', name:'Calabresa da Casa', category:'classicas', label:'Clássica', description:'Calabresa fatiada, cebola roxa, mussarela e um toque de orégano.'},
  {id:'margherita', name:'Margherita', category:'classicas', label:'Clássica', description:'Molho pomodoro, mussarela, tomate fresco e manjericão.'},
  {id:'frango', name:'Frango Cremoso', category:'especiais', label:'Especial', description:'Frango temperado, milho, requeijão cremoso e mussarela derretida.'},
- {id:'chocolate', name:'Chocolate & Morango', category:'doces', label:'Para fechar a noite', description:'Chocolate cremoso e morangos para quem sempre deixa um espaço para o doce.'},
- {id:'refri2', name:'Refrigerante 2 L', category:'bebidas', label:'Para compartilhar', description:'A companhia da pizza. Consulte os sabores disponíveis no atendimento.'},
- {id:'lata', name:'Refrigerante em lata', category:'bebidas', label:'Individual', description:'Uma opção individual para acompanhar seu pedido. Consulte os sabores.'},
+ {id:'chocolate', name:'Chocolate & Morango', category:'doces', label:'Para fechar a noite', description:'Chocolate e morangos.'},
+ {id:'refri2', name:'Refrigerante 2 L', category:'bebidas', label:'Para compartilhar', description:'Garrafa de 2 litros. Consulte os sabores disponíveis.'},
+ {id:'lata', name:'Refrigerante em lata', category:'bebidas', label:'Individual', description:'Consulte os sabores disponíveis.'},
  {id:'agua', name:'Água mineral', category:'bebidas', label:'Para acompanhar', description:'Garrafa individual. Consulte as opções disponíveis.'}
 ];
 const PHONE = '5545991033399';
@@ -33,19 +33,24 @@ const toast = document.querySelector('.toast');
 let toastTimer;
 function announce(text) { clearTimeout(toastTimer); toast.textContent = text; toast.classList.add('visible'); toastTimer = setTimeout(() => toast.classList.remove('visible'), 2600); }
 function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cart)); } catch (_) {} }
-function renderMenu(category='all') {
- const previousHeight = grid.children.length ? grid.getBoundingClientRect().height : 0;
- const items = MENU.filter(m => category === 'all' || m.category === category);
- grid.innerHTML = items.map(m => `<article class="menu-item"><span class="item-number" aria-hidden="true">${String(MENU.indexOf(m)+1).padStart(2,'0')}</span><div><span class="item-category">${esc(m.label)}</span><h3>${esc(m.name)}</h3><p>${esc(m.description)}</p></div><button class="add-item" data-add="${m.id}" aria-label="Adicionar ${esc(m.name)} à seleção">+</button></article>`).join('');
- window.BoccaMotion?.menu(grid, previousHeight);
- document.querySelector('#menu-total').textContent = `${String(items.length).padStart(2,'0')} opções`;
+function renderMenu() {
+ const groups = [
+  {id:'pizzas-salgadas', categories:['classicas','especiais']},
+  {id:'pizzas-doces', categories:['doces']},
+  {id:'bebidas', categories:['bebidas']}
+ ];
+ groups.forEach(group => {
+  const items = MENU.filter(m => group.categories.includes(m.category));
+  const list = document.querySelector(`#items-${group.id}`);
+  list.innerHTML = items.map((m,i) => `<article class="menu-item"><div><h4>${esc(m.name)}</h4><p>${esc(m.description)}</p></div><button class="add-item" data-add="${m.id}" aria-label="Adicionar ${esc(m.name)} à seleção">+</button></article>`).join('');
+ });
 }
 function updateLink() { document.querySelector('#send-order').href = whatsappLink(buildMessage(cart, notes.value)); }
 function renderOrder() {
  const count = Object.values(cart).reduce((sum, n) => sum + n, 0);
  document.querySelectorAll('.count').forEach(el => { const changed=el.textContent !== String(count); el.textContent=count; if(changed)window.BoccaMotion?.pulse(el); });
  const selected = MENU.filter(m => cart[m.id]);
- document.querySelector('#order-items').innerHTML = selected.length ? selected.map(m => `<div class="order-line"><div><h3>${esc(m.name)}</h3><button class="remove-item" data-remove="${m.id}" aria-label="Remover ${esc(m.name)}">Remover</button></div><div class="quantity"><button data-change="${m.id}" data-delta="-1" aria-label="Diminuir quantidade de ${esc(m.name)}">−</button><span aria-label="Quantidade">${cart[m.id]}</span><button data-change="${m.id}" data-delta="1" ${cart[m.id]>=MAX_QTY?'disabled':''} aria-label="Aumentar quantidade de ${esc(m.name)}">+</button></div></div>`).join('') : '<div class="empty"><span class="empty-symbol" aria-hidden="true">✳</span><p>Ainda não escolheu?<br>Seu próximo sabor está logo ali.</p><button class="button red" data-choose>Explorar os sabores ↗</button></div>';
+ document.querySelector('#order-items').innerHTML = selected.length ? selected.map(m => `<div class="order-line"><div><h3>${esc(m.name)}</h3><button class="remove-item" data-remove="${m.id}" aria-label="Remover ${esc(m.name)}">Remover</button></div><div class="quantity"><button data-change="${m.id}" data-delta="-1" aria-label="Diminuir quantidade de ${esc(m.name)}">−</button><span aria-label="Quantidade">${cart[m.id]}</span><button data-change="${m.id}" data-delta="1" ${cart[m.id]>=MAX_QTY?'disabled':''} aria-label="Aumentar quantidade de ${esc(m.name)}">+</button></div></div>`).join('') : '<div class="empty"><p>Seu pedido está vazio.</p><button class="button red" data-choose>Ver cardápio</button></div>';
  document.querySelector('#order-details').hidden = !selected.length;
  document.querySelector('.dialog-footer').hidden = !selected.length;
  updateLink();
@@ -78,13 +83,7 @@ document.querySelectorAll('[data-open-order]').forEach(b => b.addEventListener('
 document.querySelector('.close-dialog').addEventListener('click', closeOrder);
 dialog.addEventListener('close', () => document.body.classList.remove('locked'));
 dialog.addEventListener('click', e => { if (e.target === dialog) { const rect = dialog.getBoundingClientRect(); if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) closeOrder(); } });
-document.querySelector('.filters').addEventListener('click', e => {
- const b = e.target.closest('[data-category]'); if (!b) return;
- document.querySelectorAll('[data-category]').forEach(el => { const active=el===b; el.classList.toggle('active',active); el.setAttribute('aria-pressed',String(active)); });
- renderMenu(b.dataset.category);
- announce(b.dataset.category === 'all' ? 'Todos os sabores' : `Categoria: ${b.textContent}`);
-});
-grid.addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (!b) return; const item=MENU.find(m=>m.id===b.dataset.add); if ((cart[item.id]||0) >= MAX_QTY) { changeItem(item.id,1); return; } changeItem(item.id,1); b.classList.add('added'); b.textContent='✓'; clearTimeout(b.feedbackTimer); b.feedbackTimer=setTimeout(()=>{b.classList.remove('added');b.textContent='+';},1000); announce(`${item.name} adicionada à seleção`); });
+grid.addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (!b) return; const item=MENU.find(m=>m.id===b.dataset.add); if ((cart[item.id]||0) >= MAX_QTY) { changeItem(item.id,1); return; } changeItem(item.id,1); b.classList.add('added'); clearTimeout(b.feedbackTimer); b.feedbackTimer=setTimeout(()=>{b.classList.remove('added');b.textContent='+';},1000); announce(`${item.name} adicionada à seleção`); });
 document.querySelector('#order-items').addEventListener('click', async e => {
  const choose = e.target.closest('[data-choose]'); if (choose) { await closeOrder(); document.querySelector('#sabores').scrollIntoView(); return; }
  const remove = e.target.closest('[data-remove]'); if (remove) { delete cart[remove.dataset.remove]; save(); renderOrder(); document.querySelector('.close-dialog').focus(); return; }

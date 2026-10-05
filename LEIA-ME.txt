@@ -1,0 +1,3 @@
+Extraia este arquivo em uma pasta nova e abra index.html.
+Versão com a chamada Vai de Bocca, detalhes de cantina e cardápio separado.
+Fotos e cardápio são demonstrativos; confirmar com a pizzaria.
